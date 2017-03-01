@@ -79,7 +79,7 @@
 
 (define row (list 1 2 3 4 5 6 7 8 9))
 
-(define (transform ll)
+(define (transform2 ll)
   (let [(tt null)] ; empty list temporary storage
     (cond [(= 0 (car ll)) (cons 1 2 3 4 5 6 7 8 9 tt)]
           [#t (car ll)])))
@@ -89,4 +89,12 @@
 ;   if it's zero add the set of all nums to the temporary list
 ;   otherwise add a singleton set
 ; 2 repeat recursively (call the same function on the cdr of the original list)
+; hint: use the map function 
+
+(define (transform ll)
+  (let [(tt null)] ; empty list temporary storage
+    (cond [(= 0 (car ll)) (append tt (set 1 2 3 4 5 6 7 8 9))]
+          [#t (append tt (car ll))])))
+
+
 

@@ -109,10 +109,12 @@
          (cond[(= 0 x) (set 1 2 3 4 5 6 7 8 9)]
               [#t (set x)])) l ))
 
+;processes a list of list applying the
+;transformation defined above to each element
+;of the containing list
 (define (transform ll)
   (map (lambda (l)
          (cond[(null? l) set(l)]
-              [(= 0 (car l)) (set 1 2 3 4 5 6 7 8 9)]
-              [#t (set (car l))])) ll ))
+              [#t (process-inner-list l)])) ll))
 
 

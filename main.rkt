@@ -91,10 +91,28 @@
 ; 2 repeat recursively (call the same function on the cdr of the original list)
 ; hint: use the map function 
 
-(define (transform ll)
+(define (transform1 ll)
   (let [(tt null)] ; empty list temporary storage
     (cond [(= 0 (car ll)) (append tt (set 1 2 3 4 5 6 7 8 9))]
           [#t (append tt (car ll))])))
 
+(define (transform0 ll)
+  (map (lambda (l)
+         (cond[(null? l) set(l)]
+              [(= 0 (car l)) (set 1 2 3 4 5 6 7 8 9)]
+              [#t (set (car l))])) ll ))
+
+;processes a single list turning 0s into whole sets
+;and all other numbers into singleton sets
+(define (process-inner-list l)
+  (map (lambda (x)
+         (cond[(= 0 x) (set 1 2 3 4 5 6 7 8 9)]
+              [#t (set x)])) l ))
+
+(define (transform ll)
+  (map (lambda (l)
+         (cond[(null? l) set(l)]
+              [(= 0 (car l)) (set 1 2 3 4 5 6 7 8 9)]
+              [#t (set (car l))])) ll ))
 
 

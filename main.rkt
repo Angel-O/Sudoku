@@ -38,3 +38,27 @@
   (cond [(null? ll) #t]
         [(<= x (car ll)) #f]
         [#t (strictly-bigger-than-all-no-let x (cdr ll))]))
+
+(define (do-something x)
+  (let[(z 9)
+       (y 2)]
+    (* (+ z y) x)))
+
+(define (dangerous x y)
+  (cond [(> y 0) (/ x y)]
+        [(< y 0) (/ x y)]
+        [#t "division by zero"]))
+
+; function in function (currying ???)
+; increment after multiply by ten
+
+(define (iambt u)
+  (lambda (u) (* 10 u)))
+
+; start
+(define matrix (list))
+;(define solve)
+
+
+
+

@@ -69,8 +69,24 @@
                 (list 0 0 0 0 7 8 1 0 3)
                 (list 0 0 0 6 0 0 5 9 0)))
 ;(define solve)
-;(define transform)
 
-(define my-set (set 0 1))
 
+(define my-set (set 0 1 7 9))
+
+(define your-set (set 0 1 0 7 9 7 0 0 7))
+
+(define sets-are-equal (equal? my-set your-set))
+
+(define row (list 1 2 3 4 5 6 7 8 9))
+
+(define (transform ll)
+  (let [(tt null)] ; empty list temporary storage
+    (cond [(= 0 (car ll)) (cons 1 2 3 4 5 6 7 8 9 tt)]
+          [#t (car ll)])))
+
+; steps
+; 1 go through each element in the list
+;   if it's zero add the set of all nums to the temporary list
+;   otherwise add a singleton set
+; 2 repeat recursively (call the same function on the cdr of the original list)
 

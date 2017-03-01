@@ -68,8 +68,6 @@
                 (list 0 9 1 5 0 0 6 0 0)
                 (list 0 0 0 0 7 8 1 0 3)
                 (list 0 0 0 6 0 0 5 9 0)))
-;(define solve)
-
 
 (define my-set (set 0 1 7 9))
 
@@ -91,17 +89,6 @@
 ; 2 repeat recursively (call the same function on the cdr of the original list)
 ; hint: use the map function 
 
-(define (transform1 ll)
-  (let [(tt null)] ; empty list temporary storage
-    (cond [(= 0 (car ll)) (append tt (set 1 2 3 4 5 6 7 8 9))]
-          [#t (append tt (car ll))])))
-
-(define (transform0 ll)
-  (map (lambda (l)
-         (cond[(null? l) set(l)]
-              [(= 0 (car l)) (set 1 2 3 4 5 6 7 8 9)]
-              [#t (set (car l))])) ll ))
-
 ;processes a single list turning 0s into whole sets
 ;and all other numbers into singleton sets
 (define (process-inner-list l)
@@ -116,5 +103,14 @@
   (map (lambda (l)
          (cond[(null? l) set(l)]
               [#t (process-inner-list l)])) ll))
+
+;removes an element from a set excluding the
+;singleton set that contains that number
+(define (rm-from-set2 ss num)
+  (cond[(= 1 (set-count ss)) ss]
+       [(set-member? ss num)(set-remove ss num)]
+       [#t ss]))
+  
+  
 
 

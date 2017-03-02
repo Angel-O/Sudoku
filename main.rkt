@@ -106,11 +106,26 @@
 
 ;removes an element from a set excluding the
 ;singleton set that contains that number
-(define (rm-from-set2 ss num)
+(define (rm-from-set ss num)
   (cond[(= 1 (set-count ss)) ss]
        [(set-member? ss num)(set-remove ss num)]
        [#t ss]))
-  
+
+;establish whether or not a set contains a unique element
+;NOTE: will return true even for empty sets 
+(define (is-singleton a-set)
+  (= 1 (set-count a-set)))
+
+;establish if a list has all singleton sets
+;NOTE: will return true for empty lists
+(define (has-all-singleton ll)
+  (cond[(null? ll) #t] ; will handle the case of empty list...if a list has one element this will be the next step in the recursion
+       [(is-singleton (car ll)) (has-all-singleton (cdr ll))]
+       [#t #f])) ; default ==> return false
+
+; same row => same inner-list
+; same column => same index...(let ?? let* ??)
+; same 3x3 box => recursion ?? each box is a submatrix...  
   
 
 

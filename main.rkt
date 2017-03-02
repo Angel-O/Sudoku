@@ -127,8 +127,14 @@
 ; same column => same index...(let ?? let* ??)
 ; same 3x3 box => recursion ?? each box is a submatrix...
 
-;(define (solve matrix)
- ; (cond[(is-singleton (car))]
-  
+(define (process-row ls)
+  (cond ;[(null?)]
+        [(is-singleton ) (map rm-from-set (cdr ls))]
+        [#t ""]))
 
+(define (solve lls) ; the transformed matrix is a lls (list of list of sets) ===> each element is a list
+  (cond[(has-all-singleton (car lls)) (solve (cdr lls))] ; if the list has benn reduced to all singletons move on...
+       [(let ((a-list (car lls))) a-list)])); extract the initial list of the row...
+  
+(define tr (transform matrix))
 

@@ -131,7 +131,7 @@
    (let ([singletons (filter (lambda(s) ; extract all the singletons in the current list
                              (is-singleton s)) ls)])
      (map (lambda (s)
-             (rm-singl s singletons)) ls))) ; remove the singletons from each one of them
+             (rm-singl s singletons)) ls))) ; remove the singletons from each one of the sets in the current list
 
 
          

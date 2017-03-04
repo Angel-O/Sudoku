@@ -128,23 +128,42 @@
 
 ; will process a row to reduce it to a list of singletons
 (define (process-row2 ls)
-   (let ([singletons (filter (lambda(s) ; extract all the singletons in the current list
-                             (is-singleton s)) ls)])
+   (let ([singletons (find-singletons ls)])
      (map (lambda (s)
              (rm-singl s singletons)) ls))) ; remove the singletons from each one of the sets in the current list
 
+; extract all the singletons in the current list
+(define (find-singletons ls)
+  (filter (lambda (s) 
+            (is-singleton s)) ls))
 
-         
+; get a list containing the indices of all singleton sets in a list
+(define (get-singl-index ls)
+  (filter number? ; need to filter out invalid result (aka the set is not a singleton)
+          (map (lambda (s)
+                 (cond[(is-singleton s) (index-of ls s)])) ls))) ; gets the index of a sinlgeton set in a list
 
-; processes a ls ==> list of sets
-; if car singleton => remove from other set
-; if not singleton ==> recursive call
-; if no removal ===> stop
 
 
-(define (solve lls) ; the transformed matrix is a lls (list of list of sets) ===> each element is a list
-  (cond[(has-all-singleton (car lls)) (solve (cdr lls))] ; if the list has been reduced to all singletons move on...
-       [(let ((a-list (car lls))) (process-row2 a-list))])) ; extract the initial list of the matrix...
-  
+
+;(define (solve2 lls) ; the transformed matrix is a lls (list of list of sets) ===> each element is a list
+;  (cond[(has-all-singleton (car lls)) (solve (cdr lls))] ; if the list has been reduced to all singletons move on...
+;       [(let ((a-list (car lls))) (process-row2 a-list))])) ; extract the initial list of the matrix...
+
+(define (solve-rows lls) ; the transformed matrix is a lls (list of list of sets) ===> each element is a list
+  (cond[(has-all-singleton (car lls)) (solve-rows (cdr lls))] ; if the list has been reduced to all singletons move on...
+       [#t (map (lambda (ls)
+               (process-row2 ls)) lls)])) ; extract the initial list of the matrix...
+
+;(define (solve-cols lls) ;list of list of set ==> matrix
+;  (let ([indices (get-singl-index (car lls))] ; get the indices of singletons set in the current row...
+;        [..]) ; get the actual singletons in the current row...
+;    (list-ref (car indices)
+
+; get pairs containing index of singleton and singleton
+(define (get-pairs ls)
+    (filter pair? (map (lambda (s)
+                         (cond[(is-singleton s)(cons (index-of ls s) s)])) ls)))
+
 (define tr (transform matrix))
 

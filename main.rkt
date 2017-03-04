@@ -3,59 +3,7 @@
 ;making everyhting accessible for unit tests
 (provide (all-defined-out))
 
- (require racket/set)
-
-(define x 3)
-(define cube
-  (lambda (x)
-    (* x (* x x))))
-
-(define (sign x)
-  (cond [(< x 0) "negative"]
-        [(> x 0) "positive"]
-        [#t "zero"])) ;set the last condition  as true: it's the equivalent of the default clause in a switch statement
-
-;practicing with let: syntax ====> let((var1 binding1) (var2 binding2)....)
-
-(define (double-mult x)
-  (let [(y 2)
-        (z 5)]
-    (* x y z)))
-
-
-(define (f x)
-  (let [(y 3) (z 1/3)]
-    (* x y z)))
-
-; with let variable decalred in inner scope
-(define (strictly-bigger-than-all x ll)
-  (cond [(null? ll) #t]
-        [(<= x (car ll)) #f]
-        [#t
-         (let [(nl (cdr ll))]
-           (strictly-bigger-than-all x nl))]))
-
- ; without let variable 
- (define (strictly-bigger-than-all-no-let x ll)
-  (cond [(null? ll) #t]
-        [(<= x (car ll)) #f]
-        [#t (strictly-bigger-than-all-no-let x (cdr ll))]))
-
-(define (do-something x)
-  (let[(z 9)
-       (y 2)]
-    (* (+ z y) x)))
-
-(define (dangerous x y)
-  (cond [(> y 0) (/ x y)]
-        [(< y 0) (/ x y)]
-        [#t "division by zero"]))
-
-; function in function (currying ???)
-; increment after multiply by ten
-
-(define (iambt u)
-  (lambda (u) (* 10 u)))
+(require racket/set)
 
 ; start
 (define matrix (list
@@ -96,7 +44,7 @@
          (cond[(= 0 x) (set 1 2 3 4 5 6 7 8 9)]
               [#t (set x)])) l ))
 
-;processes a list of list applying the
+;processes a list of lists applying the
 ;transformation defined above to each element
 ;of the containing list
 (define (transform ll)
@@ -128,16 +76,75 @@
 ; same 3x3 box => recursion ?? each box is a submatrix...
 
 ; processes a list of sets ===> ls
+;(define (process-row ls) 
+;  (map (lambda (s)
+;         (cond[(is-singleton s) (set-first s)]
+;              [#t "multi"])) ls ))
 
+(define (process-set s el) 
+  (cond[(is-singleton s) s]
+       [#t (set-map s (lambda (x)
+                        (cond [(= x el) (set-remove s el)]
+                              [#t "not found"])))]))
+
+; given a list of sets and a singleton-subset it will remove
+; the value contained in the singleton from all sets in the list
+(define (remove-subset-from-sets ls subset)
+  (map (lambda (a-set)
+         (cond[(set-empty? a-set) a-set]
+              [(proper-subset? subset a-set) (set-remove a-set (set-first subset))]
+              [#t a-set])) ls))
+
+; processes a ls ==> list of sets
+; if car singleton => remove from other set
+; if not singleton ==> recursive call
+; if no removal ===> stop
+(define (process-row3 ls) 
+  (cond [(null? ls) ls]
+        [(is-singleton (car ls)) (remove-subset-from-sets ls (car ls))]
+        [#t (process-row (cdr ls))]))
+
+;(define (remove-subset ls subset)
+;  (cond[(null? ls) ls]
+;       [(proper-subset? subset (car ls)) ...]
 
 (define (process-row ls) 
   (map (lambda (s)
-         (cond[(is-singleton s) "singleton"]
-              [#t "multi"])) ls ))
+          (cond[(is-singleton s) (remove-subset-from-sets ls s)]
+               [#t (process-row (cdr ls))])) ls ))
+
+; subtract two sets only if they are different
+(define (safe-subtract s1 s2)
+  (cond[(set=? s1 s2) s1]
+       [#t (set-subtract s1 s2)]))
+
+; for each sinlgeton passed as second argument it will
+; remove the elemnt enclosed in its set from the set
+; passed as first parameter
+(define (rm-singl s singletons)
+  (cond[(null? (cdr singletons)) (safe-subtract s (car singletons))]
+       [#t (let [(new-set (safe-subtract s (car singletons)))] ; create a new set that does not contain the first singleton
+             (rm-singl new-set (cdr singletons)))])) ; remove the remaining (2nd, 3rd,...) singletons from the set
+
+; will process a row to reduce it to a list of singletons
+(define (process-row2 ls)
+   (let ([singletons (filter (lambda(s) ; extract all the singletons in the current list
+                             (is-singleton s)) ls)])
+     (map (lambda (s)
+             (rm-singl s singletons)) ls))) ; remove the singletons from each one of them
+
+
+         
+
+; processes a ls ==> list of sets
+; if car singleton => remove from other set
+; if not singleton ==> recursive call
+; if no removal ===> stop
+
 
 (define (solve lls) ; the transformed matrix is a lls (list of list of sets) ===> each element is a list
-  (cond[(has-all-singleton (car lls)) (solve (cdr lls))] ; if the list has benn reduced to all singletons move on...
-       [(let ((a-list (car lls))) (process-row a-list))])); extract the initial list of the matrix...
+  (cond[(has-all-singleton (car lls)) (solve (cdr lls))] ; if the list has been reduced to all singletons move on...
+       [(let ((a-list (car lls))) (process-row2 a-list))])) ; extract the initial list of the matrix...
   
 (define tr (transform matrix))
 

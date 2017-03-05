@@ -157,3 +157,32 @@
          (if (set=? s set1)
              set2
              s)) ls))
+
+; get a copy or a count to check if stuff has changed!!!
+
+(define (att3 lls)
+  (let* ([before (count-all-singletons lls)])
+    (if (resolved? lls)
+        lls
+        (cond[(= before (count-all-singletons (do-stuff lls))) (do-stuff lls)] ; stop if no progress are made 
+             [#t (att3 (do-stuff lls))]))))
+
+(define (do-stuff lls)
+  (solve-rows (rotate (solve-rows (discover-singleton (solve-rows (rotate (solve-rows lls))))))))
+
+(define (discover-singleton lls)
+  (map (lambda (ls)
+         create-singleton ls) lls))
+
+(define (resolved? lls)
+  (cond [(= (length lls) (length (filter has-all-singleton lls))) #t]
+        [#t #f]))
+
+(define (count-all-singletons lls)
+  (foldl (lambda (ls total)
+           (+ total (length ls))) 0 (map get-singletons lls)))
+
+; returns a list containing all singleton sets in the list
+(define (get-singletons ls)
+  (filter (lambda (s)
+            (is-singleton s)) ls))

@@ -216,3 +216,7 @@
 (define (get-elem lls)
   (map (lambda (ls)
          (list (first ls) (second ls))) lls))
+
+; new strategy
+; remove singletons from rows
+; rotate matrix and do the same

@@ -174,10 +174,12 @@
   (map (lambda (ls)
          create-singleton ls) lls))
 
+; determines if the matrix has been resolved
 (define (resolved? lls)
   (cond [(= (length lls) (length (filter has-all-singleton lls))) #t]
         [#t #f]))
 
+; counts the total number of singletons in the matrix
 (define (count-all-singletons lls)
   (foldl (lambda (ls total)
            (+ total (length ls))) 0 (map get-singletons lls)))
@@ -187,23 +189,35 @@
   (filter (lambda (s)
             (is-singleton s)) ls))
 
-(define (do-squares lls)
-  (filter (lambda (ls)
-            (< (index-of lls ls) 3)) lls))
-  
-(define (get-sq lls)
-  (map (lambda (ls)
-            (take ls 3)) (do-squares lls)))
-
-(define (process-square lls)
-  (let ([square (get-sq lls)]
-        [singletons (get-singletons-in-square lls)])
+; for each row in a matrix gets the first three elements 
+(define (get-square lls row col)
+  (let([rows (restrict-range lls row)])
     (map (lambda (ls)
-           (remove-s ls singletons)) lls)))
+              (restrict-range ls col)) rows)))
 
+; restricts the collection range based on the index provided  
+; index-of not working here!!! same sets have the same index!!
+(define (restrict-range coll index)
+  (cond[(and (>= index 0)(< index 3)) (list (first coll) (second coll) (third coll))]
+       [(and (>= index 3)(< index 6)) (list (fourth coll) (fifth coll) (sixth coll))]
+       [(and (>= index 6)(< index 9)) (list (seventh coll) (eighth coll) (ninth coll))]
+       [#t (error "bla bla")]))
+
+; reduces the sets in the matrix (3 x 3)
+(define (process-square lls row col)
+  (let* ([square (get-square lls row col)]
+        [singletons (get-singletons-in-square square)])
+    (map (lambda (ls)
+           (remove-s ls singletons)) square)))
+
+; removes a list of singletons from a list of sets
 (define (remove-s ls singletons)
   (cond[(null? singletons) ls]
        [#t (remove-s (remove-subset-from-sets ls (car singletons)) (cdr singletons))]))
+
+;(define (process-squares lls)
+;  (let ([ids (list 1 2 3 4 5 6 7 8 9)])
+ ;   (process-square lls (car ids))
 
 ; get a list of all singletons in a matrix
 (define (get-singletons-in-square lls)

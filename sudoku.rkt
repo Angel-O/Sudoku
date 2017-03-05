@@ -186,3 +186,35 @@
 (define (get-singletons ls)
   (filter (lambda (s)
             (is-singleton s)) ls))
+
+(define (do-squares lls)
+  (filter (lambda (ls)
+            (< (index-of lls ls) 3)) lls))
+  
+(define (get-sq lls)
+  (map (lambda (ls)
+            (take ls 3)) (do-squares lls)))
+
+(define (process-square lls)
+  (let ([square (get-sq lls)]
+        [singletons (get-singletons-in-square lls)])
+    (map (lambda (ls)
+           (remove-s ls singletons)) lls)))
+
+(define (remove-s ls singletons)
+  (cond[(null? singletons) ls]
+       [#t (remove-s (remove-subset-from-sets ls (car singletons)) (cdr singletons))]))
+
+; get a list of all singletons in a matrix
+(define (get-singletons-in-square lls)
+  (let ([singletons (map (lambda (ls)
+                           (get-singletons ls)) lls)])
+        (flat '() singletons)))
+
+; flat-map
+(define (flat start nested)
+  (cond[(null? (cdr nested)) (append start (car nested))]
+       [#t (flat (append start (car nested)) (cdr nested))]))
+  
+
+  

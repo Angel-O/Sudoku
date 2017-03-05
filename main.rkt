@@ -17,18 +17,8 @@
                 (list 0 0 0 0 7 8 1 0 3)
                 (list 0 0 0 6 0 0 5 9 0)))
 
-(define my-set (set 0 1 7 9))
-
-(define your-set (set 0 1 0 7 9 7 0 0 7))
-
-(define sets-are-equal (equal? my-set your-set))
 
 (define row (list 1 2 3 4 5 6 7 8 9))
-
-(define (transform2 ll)
-  (let [(tt null)] ; empty list temporary storage
-    (cond [(= 0 (car ll)) (cons 1 2 3 4 5 6 7 8 9 tt)]
-          [#t (car ll)])))
 
 ; steps
 ; 1 go through each element in the list
@@ -71,6 +61,11 @@
        [(is-singleton (car ll)) (has-all-singleton (cdr ll))]
        [#t #f])) ; default ==> return false
 
+(define (has-no-singleton ll)
+  (cond[(null? ll) #t] ; will handle the case of an empty list...if a list has one element this will be the next step in the recursion
+       [(not (is-singleton (car ll))) (has-no-singleton (cdr ll))]
+       [#t #f])) ; default ==> return false
+
 ; same row => same inner-list
 ; same column => same index...(let ?? let* ??)
 ; same 3x3 box => recursion ?? each box is a submatrix...
@@ -99,10 +94,7 @@
 ; if car singleton => remove from other set
 ; if not singleton ==> recursive call
 ; if no removal ===> stop
-(define (process-row3 ls) 
-  (cond [(null? ls) ls]
-        [(is-singleton (car ls)) (remove-subset-from-sets ls (car ls))]
-        [#t (process-row (cdr ls))]))
+
 
 ;(define (remove-subset ls subset)
 ;  (cond[(null? ls) ls]
@@ -165,5 +157,62 @@
     (filter pair? (map (lambda (s)
                          (cond[(is-singleton s)(cons (index-of ls s) s)])) ls)))
 
+(define (solve2 lls)
+  (cond[(has-no-singleton (car lls)) (solve2 (cdr lls))]
+       [#t (map (lambda (ls)
+               (get-pairs ls)) lls)])); for the time being just get the pairs...
+
+;(define (solve lls)
+;  (cond[(has-no-singleton (car lls)) (solve (cdr lls))]
+;       [#t (let ([pairs (get-pairs (car lls))])
+;             (map (lambda (ls) ;; scan all lists and remove singletons...
+;                    ((let ([index ]
+;                           [singleton])))
+
+(define (solve-col lls pairs)
+  (map (lambda (ls) ;; scan all lists and remove singletons...
+         (let ([pair (car pairs)])
+           (process-cols2 ls pairs))) lls)) ; remove from the ls at the specified index
+
+
+; given a list of sets and a pair (index, singleton) it removes the singleton
+; from the set at position 'index' in the list: sinlge list, single pair
+(define (process-col ls pair)
+  (let([index (car pair)]
+       [singleton (cdr pair)])
+    (map (lambda (s)
+           (cond[(= (index-of ls s) index) (rm-singl s (list singleton))] ; make a list containing only one singleton to reuse the same function..
+                [#t s])) ls))) ; return the same set unedited if it is not on the same column
+;works
+(define (process-cols2 ls pairs)
+  (cond[(null? pairs) ls]
+       [#t (process-cols2 (process-col ls (car pairs)) (cdr pairs))])) ; note the recursive call!!!
+
+; not working
+(define (process-cols lls pairs)
+  (map (lambda (ls)       
+         (cond[(null? pairs) ls]
+              [#t (process-cols (process-col ls (car pairs)) (cdr pairs))])) lls)) ; note the recursive call!!!
+
+
+; get pairs on each row
+; remove from col
+
+
+; not there yet
+(define (solve lls)
+  (map (lambda (ls)
+         (process-cols2 ls (get-pairs ls))) (solve-rows lls)))
+
 (define tr (transform matrix))
 
+(define (transpose lls)
+  (apply map list lls))
+
+(define (rotate lls)
+  (cond[(null? (cdr lls)) null]
+       [#t (list (car lls) (car (cdr lls)))]))
+
+(define (get-elem lls)
+  (map (lambda (ls)
+         (list (first ls) (second ls))) lls))

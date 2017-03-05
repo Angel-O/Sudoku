@@ -63,6 +63,13 @@
 
 (struct person (name) #:transparent)
 
+(define my-set (set 0 1 7 9))
+
+(define your-set (set 0 1 0 7 9 7 0 0 7))
+
+(define sets-are-equal (equal? my-set your-set))
+
+
 ;; steps
 ;; if singleton remove from other
 ;; if not see if it contains an element not present in the same row...

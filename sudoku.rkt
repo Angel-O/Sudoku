@@ -20,19 +20,12 @@
                 (list 0 0 0 0 7 8 1 0 3)
                 (list 0 0 0 6 0 0 5 9 0)))
 
-
-(define row (list 1 2 3 4 5 6 7 8 9))
-
-; steps
-; 1 go through each element in the list
-;   if it's zero add the set of all nums to the temporary list
-;   otherwise add a singleton set
-; 2 repeat recursively (call the same function on the cdr of the original list)
-; hint: use the map function 
+(define corners (list '(0 0) '(0 3) '(0 6) '(3 0) '(3 3) '(3 6) '(6 0) '(6 3) '(6 6) ))
+(struct singletonfound (value set) #:transparent)
 
 ;processes a single list turning 0s into whole sets
 ;and all other numbers into singleton sets
-(define (process-inner-list l)
+(define (transform-inner-list l)
   (map (lambda (x)
          (cond[(= 0 x) (set 1 2 3 4 5 6 7 8 9)]
               [#t (set x)])) l ))
@@ -43,7 +36,7 @@
 (define (transform ll)
   (map (lambda (l)
          (cond[(null? l) set(l)]
-              [#t (process-inner-list l)])) ll))
+              [#t (transform-inner-list l)])) ll))
 
 ;removes an element from a set excluding the
 ;singleton set that contains that number
@@ -54,19 +47,19 @@
 
 ;establish whether or not a set contains a unique element
 ;NOTE: will return false for empty sets 
-(define (is-singleton a-set)
+(define (singleton? a-set)
   (= 1 (set-count a-set)))
 
 ;establish if a list has all singleton sets
 ;NOTE: will return true for empty lists
 (define (has-all-singleton ll)
   (cond[(null? ll) #t] ; will handle the case of an empty list...if a list has one element this will be the next step in the recursion
-       [(is-singleton (car ll)) (has-all-singleton (cdr ll))]
+       [(singleton? (car ll)) (has-all-singleton (cdr ll))]
        [#t #f])) ; default ==> return false
 
 (define (has-no-singleton ll)
   (cond[(null? ll) #t] ; will handle the case of an empty list...if a list has one element this will be the next step in the recursion
-       [(not (is-singleton (car ll))) (has-no-singleton (cdr ll))]
+       [(not (singleton? (car ll))) (has-no-singleton (cdr ll))]
        [#t #f])) ; default ==> return false
 
 ; given a list of sets and a singleton-subset it will remove
@@ -94,7 +87,7 @@
 ; extract all the singletons in the current list
 (define (find-singletons ls)
   (filter (lambda (s) 
-            (is-singleton s)) ls))
+            (singleton? s)) ls))
 
 ; will process a row to reduce it to a list of singletons
 (define (remove-singletons ls)
@@ -102,8 +95,6 @@
      (map (lambda (s)
              (rm-singl s singletons)) ls))) ; remove the singletons from each one of the sets in the current list
 
-;(define (find-unique ls)
-  
 
 (define (solve-rows lls) ; the transformed matrix is a lls (list of list of sets) ===> each element is a list
   (cond[(null? lls) lls] ;;!!!!
@@ -111,16 +102,10 @@
        [#t (map (lambda (ls)
                (remove-singletons ls)) lls)])) ; extract the initial list of the matrix...
 
-(define tr (transform matrix))
-
 (define (rotate lls)
   (cond[(null? lls) (error "empty matrix")]
        [#t (apply map list lls) ]))
 
-
-; new strategy
-; remove singletons from rows
-; rotate matrix and do the same
      
 ;given a list of sets and an element it returns
 ;true if that element is not contained in any of the sets
@@ -157,37 +142,24 @@
     (if (resolved? lls)
         lls
         (cond;[(= before (count-all-singletons (do-stuff lls))) (do-stuff lls)] ; stop if no progress are made 
-             [#t (att3 (do-stuff lls))]))))
+             [#t (att3 (solve lls))]))))
 
-(define corners (list '(0 0) '(0 3) '(0 6) '(3 0) '(3 3) '(3 6) '(6 0) '(6 3) '(6 6) )) 
 
-(define (do-stuff lls)
+; solves the sudoku: the order is important!!
+(define (solve lls)
   (cond[(resolved? lls) lls]
        [#t
-        (do-stuff
+        (solve
+         (solve-rows
+          (rotate
+           (solve-square
+            (discover-singleton
+             (solve-rows
+              (rotate
+               (solve-square
+                (discover-singleton
+                 (solve-rows lls)) corners)))) corners))))]))
 
-  (solve-rows
-   (rotate
-    (solve-square
-     (discover-singleton
-      (solve-rows
-       (rotate
-        (solve-square
-         (discover-singleton
-          (solve-rows lls)) corners)))) corners))))]))
-
-
-;(define (do-stuff2 lls)
-  
-;  (rotate(solve-square (discover-singleton (solve-rows lls)) corners)))
-  
-
-
-(define (discover-singleton2 lls)
-  (map (lambda (ls)
-         create-singleton ls) lls))
-
-(struct singletonfound (value set) #:transparent)
 
 (define (discover-singleton lls)
   (map (lambda (ls)
@@ -199,14 +171,6 @@
        [#t (let* ([xx (car singletons)]) ; otherwise replace and call recursively
                       (eliminate-sing (replace (singletonfound-set xx) ls (set (singletonfound-value xx))) (cdr singletons)))]))
 
-;!!!!! takes a list of sets and checks if any
-; set has an element that does not appear any
-; other set: if so it makes a singleton out of it
-;(define (create-singleton ls)
-;  (let* ([a-set (car ls)]
-;         [a-list (remove a-set ls)])
-;    (cond[(number? (unique? 0 ls)) ls] ; do stuff !!!!!!!...A_LIST
-;         [#t create-singleton (cdr ls)])))
 
 
 
@@ -215,6 +179,9 @@
     (filter (lambda(x)
             (singletonfound? x)) flx)))
 
+;!!!!! takes a list of sets and checks if any
+; set has an element that does not appear any
+; other set: if so it makes a singleton out of it
 (define (create-singleton ls)
   (map (lambda(s)
             (let* ([a-list (remove s ls)]
@@ -236,7 +203,7 @@
 ; returns a list containing all singleton sets in the list
 (define (get-singletons ls)
   (filter (lambda (s)
-            (is-singleton s)) ls))
+            (singleton? s)) ls))
 
 ; for each row in a matrix gets the first three elements 
 (define (get-square lls row col)
@@ -247,17 +214,10 @@
 ; restricts the collection range based on the index provided  
 ; index-of not working here!!! same sets have the same index!!
 (define (restrict-range coll index)
-  (cond[(and (>= index 0)(< index 3)) (list (first coll) (second coll) (third coll))]
-       [(and (>= index 3)(< index 6)) (list (fourth coll) (fifth coll) (sixth coll))]
-       [(and (>= index 6)(< index 9)) (list (seventh coll) (eighth coll) (ninth coll))]
-       [#t (error "bla bla")]))
-
-(define (restrict-range2 coll index)
-  (cond[(null? coll) coll]
-       [(and (>= index 0)(< index 3)) (list (first coll) (second coll) (third coll))]
-       [(and (>= index 3)(< index 6)) (list (fourth coll) (fifth coll) (sixth coll))]
-       [(and (>= index 6)(< index 9)) (list (seventh coll) (eighth coll) (ninth coll))]
-       [#t (error "bla bla")]))
+  (cond[(= index 0)(list (first coll) (second coll) (third coll))]
+       [(= index 3)(list (fourth coll) (fifth coll) (sixth coll))]
+       [(= index 6) (list (seventh coll) (eighth coll) (ninth coll))]
+       [#t (error "invalid index provided")]))
 
 ; gets the square based on the coordinates and
 ; reduces the sets in the (3 x 3) matrix
@@ -271,20 +231,6 @@
 (define (remove-s ls singletons)
   (cond[(null? singletons) ls]
        [#t (remove-s (remove-subset-from-sets ls (car singletons)) (cdr singletons))]))
-
-;(define (solve-square2 lls row col)
-;  (let ([new-square
-;         (let([square (get-square lls row col)])
-;                      (process-square lls row col))])
-;    (do-replacement new-square lls row col)))
-
-;(define (solve-square lls corners)
-;  (cond[(null? (cdr corners)) lls]
-;       [#t (solve-square
-;            (let* ([row (caar corners)]
-;                   [col (last(car corners))]
-;                   [new-square (process-square lls row col)])
-;              (do-replacement new-square lls row col)) (cdr corners))]))
 
 (define (solve-square lls corners)
   (cond[(null? corners) lls]
@@ -305,9 +251,10 @@
 
 ; change of plan: col number can only be 0, 3, 6 and nothing else!!
 (define (build-row ls square-row col)
-  (cond[(= col 0)(flat '() (list square-row (cdddr ls)))] ; discarding the firs three
+  (cond[(= col 0)(flat '() (list square-row (cdddr ls)))] ; discarding the first three
        [(= col 3)(flat '() (list (take ls 3) square-row (take-right ls 3)))] ;insert in between
-       [(= col 6)(flat '() (list (take ls 6) square-row))])) ;insert at the end
+       [(= col 6)(flat '() (list (take ls 6) square-row))] ;insert at the end
+       [#t (error "invalid index provided")])) 
   
 
 ; get a list of all singletons in a matrix
@@ -318,7 +265,7 @@
 
 ; flat-map
 (define (flat start nested)
-  (cond[(null? nested) start]
+  (cond[(null? nested) start] ;safe check
        [(null? (cdr nested)) (append start (car nested))]
        [#t (flat (append start (car nested)) (cdr nested))]))
   

@@ -167,8 +167,25 @@
         (cond[(= before (count-all-singletons (do-stuff lls))) (do-stuff lls)] ; stop if no progress are made 
              [#t (att3 (do-stuff lls))]))))
 
+(define corners (list '(0 0) '(0 3) '(0 6) '(3 0) '(3 3) '(3 6) '(6 0) '(6 3) '(6 6) )) 
+
 (define (do-stuff lls)
-  (solve-rows (rotate (solve-rows (discover-singleton (solve-rows (rotate (solve-rows lls))))))))
+  ;(cond[(resolved? lls) lls]
+  ;     [#t
+  ;      (do-stuff
+  (rotate
+   (solve-square
+    (discover-singleton
+     (solve-rows
+      (rotate
+       (solve-square
+        (discover-singleton
+         (solve-rows lls)) corners)))) corners))) ;]))
+            
+
+(define (solve-all-squares lls)
+  (cond[(null? (cdr corners)) lls]
+       [#t (solve-square lls (car corners))]))
 
 (define (discover-singleton lls)
   (map (lambda (ls)
@@ -203,7 +220,8 @@
        [(and (>= index 6)(< index 9)) (list (seventh coll) (eighth coll) (ninth coll))]
        [#t (error "bla bla")]))
 
-; reduces the sets in the matrix (3 x 3)
+; gets the square based on the coordinates and
+; reduces the sets in the (3 x 3) matrix
 (define (process-square lls row col)
   (let* ([square (get-square lls row col)]
         [singletons (get-singletons-in-square square)])
@@ -214,6 +232,44 @@
 (define (remove-s ls singletons)
   (cond[(null? singletons) ls]
        [#t (remove-s (remove-subset-from-sets ls (car singletons)) (cdr singletons))]))
+
+(define (solve-square2 lls row col)
+  (let ([new-square
+         (let([square (get-square lls row col)])
+                      (process-square lls row col))])
+    (do-replacement new-square lls row col)))
+
+(define (solve-square-old lls corners)
+  (cond[(null? (cdr corners)) lls]
+       [#t (solve-square
+            (let* ([row (caar corners)]
+                   [col (last(car corners))]
+                   [new-square (process-square lls row col)])
+              (do-replacement new-square lls row col)) (cdr corners))]))
+
+(define (solve-square lls corners)
+  (cond[(null? corners) lls]
+       [#t (let* ([row (caar corners)]
+                  [col (last (car corners))]              
+                  [new-square (process-square lls row col)]
+                  [new-matrix (do-replacement new-square lls row col)])
+               (solve-square new-matrix (cdr corners)))]))
+  
+
+; change of plan: row number can only be 0, 3, 6 and nothing else!!
+(define (do-replacement new-square lls row col)
+  (map (lambda (ls)
+         (cond[(= (index-of lls ls) row) (build-row ls (first new-square) col)]
+              [(= (index-of lls ls) (+ row 1)) (build-row ls (second new-square) col)]
+              [(= (index-of lls ls) (+ row 2)) (build-row ls (third new-square) col) ]
+              [#t ls])) lls)) ; return the row as it was
+
+; change of plan: col number can only be 0, 3, 6 and nothing else!!
+(define (build-row ls square-row col)
+  (cond[(= col 0)(flat '() (list square-row (cdddr ls)))] ; discarding the firs three
+       [(= col 3)(flat '() (list (take ls 3) square-row (take-right ls 3)))] ;insert in between
+       [(= col 6)(flat '() (list (take ls 6) square-row))])) ;insert at the end
+  
 
 ;(define (process-squares lls)
 ;  (let ([ids (list 1 2 3 4 5 6 7 8 9)])

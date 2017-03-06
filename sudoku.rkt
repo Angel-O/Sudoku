@@ -1,5 +1,8 @@
 #lang racket
 
+; TO_DO run discover-singleton
+;also in individual squares!!!! test (att3(att3(att3 tr))) => check square @ (6 3) #1 is a potential singleton, but it is not removed...
+
 ;making everyhting accessible for unit tests
 (provide (all-defined-out))
 
@@ -103,32 +106,21 @@
   
 
 (define (solve-rows lls) ; the transformed matrix is a lls (list of list of sets) ===> each element is a list
-  (cond[(has-all-singleton (car lls)) (solve-rows (cdr lls))] ; if the list has been reduced to all singletons move on...
+  (cond[(null? lls) lls] ;;!!!!
+       [(has-all-singleton (car lls)) (solve-rows (cdr lls))] ; if the list has been reduced to all singletons move on...
        [#t (map (lambda (ls)
                (remove-singletons ls)) lls)])) ; extract the initial list of the matrix...
 
 (define tr (transform matrix))
 
 (define (rotate lls)
-  (apply map list lls))
+  (cond[(null? lls) (error "empty matrix")]
+       [#t (apply map list lls) ]))
 
 
 ; new strategy
 ; remove singletons from rows
 ; rotate matrix and do the same
-
-(define (final lls)
-  (map reduce-rows lls))
-
-(define (reduce-rows ls)
-  (cond[(is-singleton (car ls)) (remove-singletons ls)]
-       [#t (replace-set-with-singleton (car ls) ls)]))
-
-(define (create-singleton ls)
-  (let* ([a-set (car ls)]
-         [a-list (remove a-set ls)])
-    (cond[(number? (unique? 0 ls)) ls] ; do stuff
-         [#t create-singleton (cdr ls)])))
      
 ;given a list of sets and an element it returns
 ;true if that element is not contained in any of the sets
@@ -164,32 +156,72 @@
   (let* ([before (count-all-singletons lls)])
     (if (resolved? lls)
         lls
-        (cond[(= before (count-all-singletons (do-stuff lls))) (do-stuff lls)] ; stop if no progress are made 
+        (cond;[(= before (count-all-singletons (do-stuff lls))) (do-stuff lls)] ; stop if no progress are made 
              [#t (att3 (do-stuff lls))]))))
 
 (define corners (list '(0 0) '(0 3) '(0 6) '(3 0) '(3 3) '(3 6) '(6 0) '(6 3) '(6 6) )) 
 
 (define (do-stuff lls)
-  ;(cond[(resolved? lls) lls]
-  ;     [#t
-  ;      (do-stuff
-  (rotate
-   (solve-square
-    (discover-singleton
-     (solve-rows
-      (rotate
-       (solve-square
-        (discover-singleton
-         (solve-rows lls)) corners)))) corners))) ;]))
-            
+  (cond[(resolved? lls) lls]
+       [#t
+        (do-stuff
 
-(define (solve-all-squares lls)
-  (cond[(null? (cdr corners)) lls]
-       [#t (solve-square lls (car corners))]))
+  (solve-rows
+   (rotate
+    (solve-square
+     (discover-singleton
+      (solve-rows
+       (rotate
+        (solve-square
+         (discover-singleton
+          (solve-rows lls)) corners)))) corners))))]))
+
+
+;(define (do-stuff2 lls)
+  
+;  (rotate(solve-square (discover-singleton (solve-rows lls)) corners)))
+  
+
+
+(define (discover-singleton2 lls)
+  (map (lambda (ls)
+         create-singleton ls) lls))
+
+(struct singletonfound (value set) #:transparent)
 
 (define (discover-singleton lls)
   (map (lambda (ls)
-         create-singleton ls) lls))
+         (let* ([singletons (get-them (create-singleton ls))]) ;; get the potential singletons
+           (eliminate-sing ls singletons))) lls))
+
+(define (eliminate-sing ls singletons)
+  (cond[(null? singletons) ls] ; if there aren't any return the same list
+       [#t (let* ([xx (car singletons)]) ; otherwise replace and call recursively
+                      (eliminate-sing (replace (singletonfound-set xx) ls (set (singletonfound-value xx))) (cdr singletons)))]))
+
+;!!!!! takes a list of sets and checks if any
+; set has an element that does not appear any
+; other set: if so it makes a singleton out of it
+;(define (create-singleton ls)
+;  (let* ([a-set (car ls)]
+;         [a-list (remove a-set ls)])
+;    (cond[(number? (unique? 0 ls)) ls] ; do stuff !!!!!!!...A_LIST
+;         [#t create-singleton (cdr ls)])))
+
+
+
+(define (get-them lx)
+  (let ([flx (flat '() lx)])
+    (filter (lambda(x)
+            (singletonfound? x)) flx)))
+
+(define (create-singleton ls)
+  (map (lambda(s)
+            (let* ([a-list (remove s ls)]
+                   [slist (set->list s)])
+              (map (lambda (num)
+                     (cond[(number? (unique? num a-list)) (singletonfound num s)] ; do stuff !!!!!!!
+                          [#t create-singleton (cdr ls)])) slist))) ls))
 
 ; determines if the matrix has been resolved
 (define (resolved? lls)
@@ -220,6 +252,13 @@
        [(and (>= index 6)(< index 9)) (list (seventh coll) (eighth coll) (ninth coll))]
        [#t (error "bla bla")]))
 
+(define (restrict-range2 coll index)
+  (cond[(null? coll) coll]
+       [(and (>= index 0)(< index 3)) (list (first coll) (second coll) (third coll))]
+       [(and (>= index 3)(< index 6)) (list (fourth coll) (fifth coll) (sixth coll))]
+       [(and (>= index 6)(< index 9)) (list (seventh coll) (eighth coll) (ninth coll))]
+       [#t (error "bla bla")]))
+
 ; gets the square based on the coordinates and
 ; reduces the sets in the (3 x 3) matrix
 (define (process-square lls row col)
@@ -233,19 +272,19 @@
   (cond[(null? singletons) ls]
        [#t (remove-s (remove-subset-from-sets ls (car singletons)) (cdr singletons))]))
 
-(define (solve-square2 lls row col)
-  (let ([new-square
-         (let([square (get-square lls row col)])
-                      (process-square lls row col))])
-    (do-replacement new-square lls row col)))
+;(define (solve-square2 lls row col)
+;  (let ([new-square
+;         (let([square (get-square lls row col)])
+;                      (process-square lls row col))])
+;    (do-replacement new-square lls row col)))
 
-(define (solve-square-old lls corners)
-  (cond[(null? (cdr corners)) lls]
-       [#t (solve-square
-            (let* ([row (caar corners)]
-                   [col (last(car corners))]
-                   [new-square (process-square lls row col)])
-              (do-replacement new-square lls row col)) (cdr corners))]))
+;(define (solve-square lls corners)
+;  (cond[(null? (cdr corners)) lls]
+;       [#t (solve-square
+;            (let* ([row (caar corners)]
+;                   [col (last(car corners))]
+;                   [new-square (process-square lls row col)])
+;              (do-replacement new-square lls row col)) (cdr corners))]))
 
 (define (solve-square lls corners)
   (cond[(null? corners) lls]
@@ -271,10 +310,6 @@
        [(= col 6)(flat '() (list (take ls 6) square-row))])) ;insert at the end
   
 
-;(define (process-squares lls)
-;  (let ([ids (list 1 2 3 4 5 6 7 8 9)])
- ;   (process-square lls (car ids))
-
 ; get a list of all singletons in a matrix
 (define (get-singletons-in-square lls)
   (let ([singletons (map (lambda (ls)
@@ -283,7 +318,8 @@
 
 ; flat-map
 (define (flat start nested)
-  (cond[(null? (cdr nested)) (append start (car nested))]
+  (cond[(null? nested) start]
+       [(null? (cdr nested)) (append start (car nested))]
        [#t (flat (append start (car nested)) (cdr nested))]))
   
 

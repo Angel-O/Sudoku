@@ -7,7 +7,9 @@
 
 ;; SUDOKU SOLVER
 ;; lls ==> list of lists of sets
+;; lln ==> list of lists of numbers
 ;; ls  ==> list of sets
+;; ln  ==> list of numbers
 ;; lx  ==> list of anything
 ;; s   ==> set
 
@@ -34,17 +36,31 @@
 ;; containing all numbers in the range 1-9 as to indicate that the
 ;; cell could hold any of them. Any other number is turned into a
 ;; singleton set, indicating that the cell is resolved
-(define (transform-inner-list ln)
+(define (transform-numbers-to-sets ln)
   (map (lambda (n)
          (cond[(= 0 n) (set 1 2 3 4 5 6 7 8 9)]
               [#t (set n)])) ln ))
 
+;; performs the same transformation of "transform-numbers-to-sets"
+;; in the opposite direction turning sets into the correspondent number
+(define (transform-sets-to-numbers ls)
+  (map (lambda (s)
+         (cond[(singleton? s) (set-first s)]
+              [#t s])) ls)) ;if it's unsolved leave it as it is
+
+;; processes a list of lists of sets (lln) applying the transformation described
+;; in the "transform-numbers-to-sets" function to each element of the containing list
+(define (transform lln)
+  (map (lambda (ln)
+         (cond[(null? ln) set(ln)] ;safe check
+              [#t (transform-numbers-to-sets ln)])) lln))
+
 ;; processes a list of lists of sets (lls) applying the transformation described
-;; in the "transform-inner-list" function to each element of the containing list
-(define (transform lls)
+;; in the "transform-sets-to-numbers" function to each element of the containing list
+(define (re-transform lls)
   (map (lambda (ls)
-         (cond[(null? ls) set(ls)] ;safe check
-              [#t (transform-inner-list ls)])) lls))
+         (cond[(null? ls) 0] ;safe check
+              [#t (transform-sets-to-numbers ls)])) lls))
 
 ;; establish whether or not a set contains is a
 ;; singleton: that is it contains only one element
@@ -130,9 +146,11 @@
 (define (start lls)
   (let* ([before lls]
          [before-count (count-all-singletons lls)]) ;count the total number of singletons before any processing is made
-    (cond[(resolved? lls) (begin (printf "Solved! The solution is:\n") lls)] ; if its solved print it
-         [(invalid-matrix? (resolve lls)) (begin (printf "This Sudoku cannot be solved. Current state:\n") before)] ;if we get duplicates we will return the previous matrix
-         [(= before-count (count-all-singletons (resolve lls))) (begin (printf "Unable to proceed any further. Current state:\n") lls)] ;stop if no progress is made 
+    (cond[(resolved? lls) (begin (printf "Solved! The solution is:\n") (re-transform lls))] ;if its solved re-transform it
+         ;if we get duplicates we will return the previous matrix
+         [(invalid-matrix? (resolve lls)) (begin (printf "This Sudoku cannot be solved. Current state:\n") (re-transform (resolve lls)))]
+         ;stop if no progress is made and show the current state of the matrix
+         [(= before-count (count-all-singletons (resolve lls))) (begin (printf "Unable to proceed any further. Current state:\n") (re-transform lls))] 
          [#t (start (resolve lls))]))) ;otherwise give it another go 
 
 ;; checks whether or not there is at least one row or column
@@ -160,10 +178,11 @@
              [#t (any-square-with-dups lls (cdr corners))])))) ;otherwise check the nexr square
 
 ;; launches the game performing an initial check to make sure it the matrix is valid
-(define (solve lls)
-  (if (invalid-matrix? lls)
-      (error "Invalid start matrix: it cannot have duplicate elements in any row, column or 3 x 3 square. Fix it and try again.")
-      (start lls)))
+(define (solve lln)
+  (let* ([lls (transform lln)])
+    (if (invalid-matrix? lls)
+        (error "Invalid start matrix: it cannot have duplicate elements in any row, column or 3 x 3 square. Fix it and try again.")
+        (start lls))))
 
 ;; returns true if the matrix is valid, false otherwise
 (define (invalid-matrix? lls)

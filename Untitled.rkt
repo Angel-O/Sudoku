@@ -97,15 +97,14 @@
 ;; scans the whole matrix in the attempt of reducing
 ;; each set in each row to a list of singletons
 (define (reduce-rows lls) 
-  (cond[(null? lls) lls] ; safe check: if we got to the end of the matrix return null....
-       [(has-all-singleton (car lls)) (reduce-rows (cdr lls))] ; if the list has been reduced to all singletons move on...
-       [#t (map (lambda (ls)
-               (remove-singletons ls)) lls)])) ; extract the initial list of the matrix...
+  (cond[(resolved? lls) lls] ; if the matrix is solved return it
+       [#t (map (lambda (ls) ; otherwise reduce each row
+               (remove-singletons ls)) lls)])) 
 
 ;; transpose the matrix so that horizontal lists
 ;; become vertical and vice-versa
 (define (rotate lls)
-  (cond[(null? lls) (error "empty matrix")]
+  (cond;[(null? lls) (error "empty matrix")]
        [#t (apply map list lls) ]))
 
      

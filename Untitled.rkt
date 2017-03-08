@@ -12,6 +12,7 @@
 ;; ln  ==> list of numbers
 ;; lx  ==> list of anything
 ;; s   ==> set
+;; n   ==> number
 
 ;; the sudoku matrix to be solved
 (define matrix (list
@@ -25,8 +26,8 @@
                 (list 0 0 0 0 7 8 1 0 3)
                 (list 0 0 0 6 0 0 5 9 0)))
 
-;; each pair represents the coordinates of a 3 x 3 submatrix 
-(define corners (list '(0 0) '(0 3) '(0 6) '(3 0) '(3 3) '(3 6) '(6 0) '(6 3) '(6 6) ))
+;; each pair represents the coordinates of the top-left cell of a 3 x 3 submatrix 
+(define corners (list '(0 0) '(0 3) '(0 6) '(3 0) '(3 3) '(3 6) '(6 0) '(6 3) '(6 6)))
 
 ;; custom data structure containing the value of a potential singleton
 ;; set and the set that contains the potential value
@@ -141,17 +142,19 @@
              set2
              s)) ls))
 
-;; attempts to solve the sudoku it will stop when it is solved
-;; or no progress can be made...thunk the expression....
-(define (start lls)
-  (let* ([before lls]
-         [before-count (count-all-singletons lls)]) ;count the total number of singletons before any processing is made
+;; attempts to solve the sudoku. It will stop when it is solved
+;; or no progress can be made. The matrix returned will be retransformed
+;; to contain numbers rather than sets
+(define (solve-sudoku lls)
+  (let* ([before-count (count-all-singletons lls)]) ;count the total number of singletons before any processing is made
     (cond[(resolved? lls) (begin (printf "Solved! The solution is:\n") (re-transform lls))] ;if its solved re-transform it
-         ;if we get duplicates we will return the previous matrix
-         [(invalid-matrix? (resolve lls)) (begin (printf "This Sudoku cannot be solved. Current state:\n") (re-transform (resolve lls)))]
-         ;stop if no progress is made and show the current state of the matrix
-         [(= before-count (count-all-singletons (resolve lls))) (begin (printf "Unable to proceed any further. Current state:\n") (re-transform lls))] 
-         [#t (start (resolve lls))]))) ;otherwise give it another go 
+         [#t (let* ([after (resolve lls)]) ;otherwise process it and check the result
+                    ;stop if we get duplicates and show the current state of the matrix
+               (cond[(invalid-matrix? after) (begin (printf "This Sudoku cannot be solved. Current state:\n") (re-transform after))]
+                    ;stop if no progress is made and show the current state of the matrix
+                    [(= before-count (count-all-singletons (resolve after))) (begin (printf "Unable to proceed any further. Current state:\n") (re-transform lls))]
+                    ;otherwise give it another go 
+                    [#t (solve-sudoku (resolve after))]))])))
 
 ;; checks whether or not there is at least one row or column
 ;; with duplicate singleton sets
@@ -182,7 +185,7 @@
   (let* ([lls (transform lln)])
     (if (invalid-matrix? lls)
         (error "Invalid start matrix: it cannot have duplicate elements in any row, column or 3 x 3 square. Fix it and try again.")
-        (start lls))))
+        (solve-sudoku lls))))
 
 ;; returns true if the matrix is valid, false otherwise
 (define (invalid-matrix? lls)
@@ -196,12 +199,13 @@
 (define (resolve lls)
   (cond[(resolved? lls) lls] ;stop if the matrix is resolved
        [#t ;otherwise process the matrix
-        (rotate ; this call will reset the matrix
-         (reduce-rows
-          (rotate
-           (solve-square
-            (discover-singleton
-             (reduce-rows lls)) corners))))]));
+        (solve-square ;this should be the last (or first since the function is recursive) call as it is orientation-independent
+         (rotate ;this call will reset the matrix to the original orientation
+          (discover-singleton ;repeated after rotating
+           (reduce-rows ;repeated after rotating
+            (rotate       
+             (discover-singleton
+              (reduce-rows lls)))))) corners)]));
 
 ;; given a matrix it scan each row(column) looking
 ;; for potential: for each set in a row it will check whether or not there are elements
@@ -225,7 +229,7 @@
     (filter (lambda(x)
             (singletonfound? x)) flx)))
 
-;; takes a list of sets and checks if any set has an element that does not appear any
+;; takes a list of sets and checks if any set has an element that does not appear in any
 ;; other set in the list: if so it makes a "singletonfound" out of it and maps it to the set
 (define (discover-singletonfound ls)
   (map (lambda(s)
@@ -309,7 +313,7 @@
   (map (lambda (ls)
          (cond[(= (index-of lls ls) row) (build-row ls (first new-square) col)]
               [(= (index-of lls ls) (+ row 1)) (build-row ls (second new-square) col)]
-              [(= (index-of lls ls) (+ row 2)) (build-row ls (third new-square) col) ]
+              [(= (index-of lls ls) (+ row 2)) (build-row ls (third new-square) col)]
               [#t ls])) lls)) ;return the row as it was
 
 ;; it will build a list (row) containg a mix of the original row and the square-row passed as parameter
@@ -320,7 +324,7 @@
        [(= col 6)(flat '() (list (take ls 6) square-row))] ;insert at the end
        [#t (error "invalid index provided")])) 
   
-;; flat-map: flattens a list of list
+;; flat-map: flattens a list of lists
 (define (flat start nested)
   (cond[(null? nested) start] ;safe check
        [(null? (cdr nested)) (append start (car nested))]

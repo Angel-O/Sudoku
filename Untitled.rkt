@@ -11,7 +11,7 @@
 ;; ls  ==> list of sets
 ;; ln  ==> list of numbers
 ;; lx  ==> list of anything
-;; s   ==> set
+;; s, a-set  ==> set
 ;; n   ==> number
 
 ;; the sudoku matrix to be solved
@@ -152,15 +152,14 @@
                     ;stop if we get duplicates and show the current state of the matrix
                (cond[(invalid-matrix? after) (begin (printf "This Sudoku cannot be solved. Current state:\n") (re-transform after))]
                     ;stop if no progress is made and show the current state of the matrix
-                    [(= before-count (count-all-singletons (resolve after))) (begin (printf "Unable to proceed any further. Current state:\n") (re-transform lls))]
+                    [(= before-count (count-all-singletons (resolve after))) (begin (printf "Unable to proceed any further. Current state:\n") (re-transform after))]
                     ;otherwise give it another go 
                     [#t (solve-sudoku (resolve after))]))])))
 
 ;; checks whether or not there is at least one row or column
 ;; with duplicate singleton sets
 (define (any-row-with-dups lls)
-  (cond[(> (length (filter has-duplicate-singleton? lls)) 0) #t] ;return true if at least  a row with duplicate sinlgeton is found
-       [#t #f])) ;otherwise return false
+  (> (length (filter has-duplicate-singleton? lls)) 0)) ;return true if at least a row with duplicate sinlgeton is found
 
 ;; checks whether a row contains duplicate singleton sets
 (define (has-duplicate-singleton? ls)
@@ -191,23 +190,21 @@
 (define (invalid-matrix? lls)
   (or (any-row-with-dups lls) (any-row-with-dups (rotate lls)) (any-square-with-dups lls corners)))
 
-;; processes the matrix until it is resolved
-;; calling rotate & reduce rows in sequence translates to reduce columns
-;; in order to always return the matrix in the original orientation
-;; the rotatation must be happen twice: we have to reset the matrix
+;; processes the matrix in the attempt of resolving it
+;; calling rotate & "reduce rows" in sequence translates to "reduce columns".
+;; In order to always return the matrix in the original orientation
+;; the rotatation must happen twice: we have to make sure we reset the matrix
 ;; to the original orientation
-(define (resolve lls)
-  (cond[(resolved? lls) lls] ;stop if the matrix is resolved
-       [#t ;otherwise process the matrix
-        (solve-square ;this should be the last (or first since the function is recursive) call as it is orientation-independent
-         (rotate ;this call will reset the matrix to the original orientation
-          (discover-singleton ;repeated after rotating
-           (reduce-rows ;repeated after rotating
-            (rotate       
-             (discover-singleton
-              (reduce-rows lls)))))) corners)]));
+(define (resolve lls) 
+  (solve-square ;being orientation-independent this should be the last call (or first since the function is part of a recursive chain)
+   (rotate ;this call will reset the matrix to the original orientation
+    (discover-singleton ;repeated after rotating
+     (reduce-rows ;repeated after rotating
+      (rotate       
+       (discover-singleton
+        (reduce-rows lls)))))) corners));
 
-;; given a matrix it scan each row(column) looking
+;; given a matrix it scans each row(column) looking
 ;; for potential: for each set in a row it will check whether or not there are elements
 ;; that don't appear in any other set in the same row(column). If any is found they will
 ;; be removed from the other set in the same row(column)
@@ -235,16 +232,15 @@
   (map (lambda(s)
             (let* ([a-list (remove s ls)] ;remove the current set from the list to get a sensible result
                    [slist (set->list s)]) ;turn the set into a list to scan through its elements easily
-              (map (lambda (num) ;for each element in the set check it is the only one appearing in the list containing the set
-                     (cond[(number? (unique? num a-list)) (singletonfound num s)] ; if so make a "singletonfound" type out of it and map it to the set
+              (map (lambda (num) ;for each element in the set-list check if it's the only one appearing in the list containing the set (the parent list)
+                     (cond[(number? (unique? num a-list)) (singletonfound num s)] ;if so make a "singletonfound" type out of it and map it to the set
                           [#t #f] ;otherwise map the set to a false value
-                          )) slist))) ls)) ;otherwise try again with the rest of the list
+                          )) slist))) ls))
 
 ;; determines if the matrix has been resolved by checking if each
 ;; row contains only singleton sets
 (define (resolved? lls)
-  (cond [(= (length lls) (length (filter has-all-singleton lls))) #t]
-        [#t #f]))
+  (= (length lls) (length (filter has-all-singleton lls))))
 
 ;; counts the total number of singletons in the matrix
 (define (count-all-singletons lls)
@@ -304,7 +300,7 @@
        [#t (let* ([row (caar corners)] ;get the row coordinate
                   [col (last (car corners))] ;get the column coordinate           
                   [new-square (process-square lls row col)] ;process the square corresponding to the coordinates
-                  [new-matrix (do-replacement new-square lls row col)]) ; replace the old square with the new one
+                  [new-matrix (do-replacement new-square lls row col)]) ;replace the old square with the new one
                (solve-square new-matrix (cdr corners)))])) ;keep doinig it recursively until we run out of coordinates
   
 ;; given a matrix and square it will replace the section indicated via coordinates

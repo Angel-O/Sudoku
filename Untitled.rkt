@@ -26,12 +26,7 @@
                 (list 0 0 0 0 7 8 1 0 3)
                 (list 0 0 0 6 0 0 5 9 0)))
 
-;; each pair represents the coordinates of the top-left cell of a 3 x 3 submatrix 
-(define corners (list '(0 0) '(0 3) '(0 6) '(3 0) '(3 3) '(3 6) '(6 0) '(6 3) '(6 6)))
-
-;; custom data structure containing the value of a potential singleton
-;; set and the set that contains the potential value
-(struct singletonfound (value set) #:transparent)
+;;; ============================= TRANSFORMATION =======================
 
 ;; processes a single list of numbers (ln) turning 0s into a set
 ;; containing all numbers in the range 1-9 as to indicate that the
@@ -49,7 +44,7 @@
          (cond[(singleton? s) (set-first s)]
               [#t s])) ls)) ;if it's unsolved leave it as it is
 
-;; processes a list of lists of sets (lln) applying the transformation described
+;; processes a list of lists of numbers (lln) applying the transformation described
 ;; in the "transform-numbers-to-sets" function to each element of the containing list
 (define (transform lln)
   (map (lambda (ln)
@@ -62,6 +57,8 @@
   (map (lambda (ls)
          (cond[(null? ls) 0] ;safe check
               [#t (transform-sets-to-numbers ls)])) lls))
+
+;;; ============================= SINGLETONS ==========================
 
 ;; establish whether or not a set contains is a
 ;; singleton: that is it contains only one element
@@ -76,6 +73,8 @@
        [(singleton? (car ls)) (has-all-singleton (cdr ls))]
        [#t #f])) ;default ==> return false
 
+;;; =========================== HANDLING LISTS ===========================
+
 ;; given a list of sets and a singleton-subset it will remove
 ;; the value contained in the singleton from all sets in the list
 (define (remove-subset-from-sets ls subset)
@@ -83,23 +82,6 @@
          (cond[(set-empty? a-set) a-set]
               [(proper-subset? subset a-set) (set-remove a-set (set-first subset))]
               [#t a-set])) ls))
-
-;; subtract two sets only if they are different
-(define (safe-subtract s1 s2)
-  (cond[(set=? s1 s2) s1]
-       [#t (set-subtract s1 s2)]))
-
-;; for each singleton passed as second argument it will
-;; remove the element enclosed by the singleton from the set passed as first parameter
-(define (remove-elements-from-set s singletons)
-  (cond[(null? (cdr singletons)) (safe-subtract s (car singletons))]
-       [#t (let [(new-set (safe-subtract s (car singletons)))] ;create a new set that does not contain the first singleton
-             (remove-elements-from-set new-set (cdr singletons)))])) ;remove the remaining (2nd, 3rd,...) singletons from the set
-
-;; extract all the singletons in the current list
-(define (find-singletons ls)
-  (filter (lambda (s) 
-            (singleton? s)) ls))
 
 ;; NOTE: native-singletons (as opposed to foreign singletons)
 ;; stands for singleton found in the list itself)
@@ -116,14 +98,28 @@
 (define (reduce-rows lls) 
   (cond[(resolved? lls) lls] ;if the matrix is solved return it
        [#t (map (lambda (ls) ;otherwise reduce each row
-               (remove-native-singletons ls)) lls)])) 
+               (remove-native-singletons ls)) lls)]))
 
-;; transpose the matrix so that horizontal lists
-;; become vertical and vice-versa
-(define (rotate lls)
-  (cond[(null? lls) (begin (printf "The matrix provided was empty\n") null)] ;safe check
-       [#t (apply map list lls) ]))
-  
+;; extract all the singletons in the current list
+(define (find-singletons ls)
+  (filter (lambda (s) 
+            (singleton? s)) ls))
+
+;;; ============================== HANDLING SETS =========================
+
+;; subtract two sets only if they are different
+(define (safe-subtract s1 s2)
+  (cond[(set=? s1 s2) s1]
+       [#t (set-subtract s1 s2)]))
+
+;; for each singleton passed as second argument it will
+;; remove the element enclosed by the singleton from the set passed as first parameter
+(define (remove-elements-from-set s singletons)
+  (cond[(null? (cdr singletons)) (safe-subtract s (car singletons))]
+       [#t (let [(new-set (safe-subtract s (car singletons)))] ;create a new set that does not contain the first singleton
+             (remove-elements-from-set new-set (cdr singletons)))])) ;remove the remaining (2nd, 3rd,...) singletons from the set
+
+
 ;; given a list of sets and an element it returns true
 ;; if that element is not contained in any of the sets
 ;; in the list: otherwise it will return the element searched for
@@ -142,6 +138,8 @@
              set2
              s)) ls))
 
+;;; ========================== SOLVING SUDOKU =========================
+
 ;; attempts to solve the sudoku. It will stop when it is solved
 ;; or no progress can be made. The matrix returned will be retransformed
 ;; to contain numbers rather than sets
@@ -156,19 +154,40 @@
                     ;otherwise give it another go 
                     [#t (solve-sudoku (resolve after))]))])))
 
-;; checks whether or not there is at least one row or column
-;; with duplicate singleton sets
-(define (any-row-with-dups lls)
-  (> (length (filter has-duplicate-singleton? lls)) 0)) ;return true if at least a row with duplicate sinlgeton is found
+;; launches the game performing an initial check to make sure it the matrix is valid
+(define (solve lln)
+  (let* ([lls (transform lln)])
+    (if (invalid-matrix? lls)
+        (error "Invalid start matrix: it cannot have duplicate elements in any row, column or 3 x 3 square. Fix it and try again.")
+        (solve-sudoku lls))))
 
-;; checks whether a row contains duplicate singleton sets
-(define (has-duplicate-singleton? ls)
-  (check-duplicates ls (lambda (s1 s2)
-                         (and (set=? s1 s2) (singleton? s1) (singleton? s2)))))
+;; processes the matrix in the attempt of resolving it.
+;; Note: calling "rotate" & "reduce rows" in sequence translates to "reduce columns"
+;; (we also call "discover-singleton" again after the rotation: reduce row and discover singleton
+;; could be a unique function, but for clarity are kept separate).
+;; In order to always return the matrix in the original orientation
+;; the rotatation must happen twice: we have to make sure we reset the matrix
+;; to the original orientation
+(define (resolve lls) 
+  (solve-squares ;being orientation-independent this should be the last call (or first since the function is part of a recursive chain)
+   (rotate ;this call will reset the matrix to the original orientation
+    (discover-singleton ;repeated after rotating
+     (reduce-rows ;repeated after rotating
+      (rotate       
+       (discover-singleton
+        (reduce-rows lls))))))));
 
-;; checks whether or not ther is a at least a 3 x 3 square
+;;; ========================== CHECKING DUPLICATES ========================
+
+;; entry point to "any-square-with-duplicates" function
+(define (any-square-with-dups lls)
+  ;each pair represents the coordinates of the top-left cell of a 3 x 3 submatrix
+  (let ([corners (list '(0 0) '(0 3) '(0 6) '(3 0) '(3 3) '(3 6) '(6 0) '(6 3) '(6 6))])  
+    (any-square-with-duplicates lls corners)))
+
+;; checks whether or not there is a at least a 3 x 3 square
 ;; that contains two singleton sets that are the equal
-(define (any-square-with-dups lls corners)
+(define (any-square-with-duplicates lls corners)
   (if (null? corners)
       #f
       (let* ([row (caar corners)]
@@ -177,35 +196,30 @@
              [singletons (get-singletons-in-matrix square)] ;get a list of all singletons
              [square-to-list (flat '() square)]) ;flatten the square
         (cond[(has-duplicate-singleton? square-to-list) #t] ;if the flattened square contains duplicates return true
-             [#t (any-square-with-dups lls (cdr corners))])))) ;otherwise check the nexr square
+             [#t (any-square-with-duplicates lls (cdr corners))])))) ;otherwise check the nexr square
 
-;; launches the game performing an initial check to make sure it the matrix is valid
-(define (solve lln)
-  (let* ([lls (transform lln)])
-    (if (invalid-matrix? lls)
-        (error "Invalid start matrix: it cannot have duplicate elements in any row, column or 3 x 3 square. Fix it and try again.")
-        (solve-sudoku lls))))
+;; checks whether a row contains duplicate singleton sets
+(define (has-duplicate-singleton? ls)
+  (check-duplicates ls (lambda (s1 s2)
+                         (and (set=? s1 s2) (singleton? s1) (singleton? s2)))))
 
-;; returns true if the matrix is valid, false otherwise
-(define (invalid-matrix? lls)
-  (or (any-row-with-dups lls) (any-row-with-dups (rotate lls)) (any-square-with-dups lls corners)))
+;; checks whether or not there is at least one row or column
+;; with duplicate singleton sets
+(define (any-row-with-dups lls)
+  (> (length (filter has-duplicate-singleton? lls)) 0)) ;return true if at least a row with duplicate sinlgeton is found
 
-;; processes the matrix in the attempt of resolving it
-;; calling rotate & "reduce rows" in sequence translates to "reduce columns".
-;; In order to always return the matrix in the original orientation
-;; the rotatation must happen twice: we have to make sure we reset the matrix
-;; to the original orientation
-(define (resolve lls) 
-  (solve-square ;being orientation-independent this should be the last call (or first since the function is part of a recursive chain)
-   (rotate ;this call will reset the matrix to the original orientation
-    (discover-singleton ;repeated after rotating
-     (reduce-rows ;repeated after rotating
-      (rotate       
-       (discover-singleton
-        (reduce-rows lls)))))) corners));
 
-;; given a matrix it scans each row(column) looking
-;; for potential: for each set in a row it will check whether or not there are elements
+;;; ==================== DISCOVERING NEW SINGLETONS =======================
+
+;;; Note: in this section a different approach (from the SINGLETON section) is used:
+;;; The singleton defined in this section are custom singletons as shown below.
+
+;; custom data structure containing the value of a potential singleton
+;; set and the set that contains the potential value
+(struct singletonfound (value set) #:transparent)
+
+;; given a matrix it scans each row(column) looking for potential singleton sets:
+;; for each set in a row it will check whether or not there are elements
 ;; that don't appear in any other set in the same row(column). If any is found they will
 ;; be removed from the other set in the same row(column)
 (define (discover-singleton lls)
@@ -237,10 +251,13 @@
                           [#t #f] ;otherwise map the set to a false value
                           )) slist))) ls))
 
-;; determines if the matrix has been resolved by checking if each
-;; row contains only singleton sets
-(define (resolved? lls)
-  (= (length lls) (length (filter has-all-singleton lls))))
+;;; ============================== HANDLING MATRIX ===========================
+
+;; gets a list of all singletons in a matrix
+(define (get-singletons-in-matrix lls)
+  (let ([singletons (map (lambda (ls)
+                           (get-singletons-in-row ls)) lls)])
+        (flat '() singletons)))
 
 ;; counts the total number of singletons in the matrix
 (define (count-all-singletons lls)
@@ -252,6 +269,14 @@
   (filter (lambda (s)
             (singleton? s)) ls))
 
+;; transpose the matrix so that horizontal lists
+;; become vertical and vice-versa
+(define (rotate lls)
+  (cond[(null? lls) (begin (printf "The matrix provided was empty\n") null)] ;safe check
+       [#t (apply map list lls) ]))
+
+;;; ============================ HANDLING SQUARES ============================
+
 ;; given row and column coordinates returns the corresponding 3x3 square
 ;; NOTE: only valid coordinates (in the corners list) will return the sub-matrix
 ;; any other coordinate will cause an error to be thrown
@@ -259,6 +284,14 @@
   (let([rows (restrict-range lls row)])
     (map (lambda (ls)
               (restrict-range ls col)) rows)))
+
+;; gets the square based on the coordinates find all the singletons in it
+;; and removes the value enclosed in each singleton from each other set in the (3 x 3) matrix
+(define (process-square lls row col)
+  (let* ([square (get-square lls row col)]
+         [singletons (get-singletons-in-matrix square)])
+    (map (lambda (ls)
+           (remove-foreign-singletons ls singletons)) square)))
 
 ;; restricts the collection range based on the index provided  
 ;; NOTE: index-of does not work here, since sets with the same values are
@@ -271,26 +304,19 @@
        [(= index 6) (list (seventh coll) (eighth coll) (ninth coll))]
        [#t (error "invalid index provided")]))
 
-;; gets the square based on the coordinates find all the singletons in it
-;; and removes the value enclised in each singleton from each other set in the (3 x 3) matrix
-(define (process-square lls row col)
-  (let* ([square (get-square lls row col)]
-         [singletons (get-singletons-in-matrix square)])
-    (map (lambda (ls)
-           (remove-foreign-singletons ls singletons)) square)))
-
-;; gets a list of all singletons in a matrix
-(define (get-singletons-in-matrix lls)
-  (let ([singletons (map (lambda (ls)
-                           (get-singletons-in-row ls)) lls)])
-        (flat '() singletons)))
-
 ;; NOTE: foreign-singletons (as opposed to native singletons)
 ;; stands for singleton that weren't necessarily found in the list itself)
 ;; This function removes a list of singletons from a list of sets
 (define (remove-foreign-singletons ls singletons)
   (cond[(null? singletons) ls]
        [#t (remove-foreign-singletons (remove-subset-from-sets ls (car singletons)) (cdr singletons))]))
+
+;; entry point to "solve-square function" : it defines
+;; the corners coordinates and then solves each square
+(define (solve-squares lls)
+  ;each pair represents the coordinates of the top-left cell of a 3 x 3 submatrix
+  (let ([corners (list '(0 0) '(0 3) '(0 6) '(3 0) '(3 3) '(3 6) '(6 0) '(6 3) '(6 6))])
+    (solve-square lls corners)))
 
 ;; given a matrix and a set of coordinates it will try and solve each 3 x 3 square
 ;; indicated by the coordinates by reducing its sets to singletons
@@ -301,7 +327,7 @@
                   [col (last (car corners))] ;get the column coordinate           
                   [new-square (process-square lls row col)] ;process the square corresponding to the coordinates
                   [new-matrix (do-replacement new-square lls row col)]) ;replace the old square with the new one
-               (solve-square new-matrix (cdr corners)))])) ;keep doinig it recursively until we run out of coordinates
+               (solve-square new-matrix (cdr corners)))])) ;keep doing it recursively until we run out of coordinates
   
 ;; given a matrix and square it will replace the section indicated via coordinates
 ;; with the square provided
@@ -319,12 +345,24 @@
        [(= col 3)(flat '() (list (take ls 3) square-row (take-right ls 3)))] ;insert in between
        [(= col 6)(flat '() (list (take ls 6) square-row))] ;insert at the end
        [#t (error "invalid index provided")])) 
-  
-;; flat-map: flattens a list of lists
+
+;;; ================================= HELPERS ================================
+
+;; custom implementation of flat-map: flattens a list of lists
 (define (flat start nested)
   (cond[(null? nested) start] ;safe check
        [(null? (cdr nested)) (append start (car nested))]
        [#t (flat (append start (car nested)) (cdr nested))]))
+
+;; determines if the matrix has been resolved by checking if each
+;; row contains only singleton sets
+(define (resolved? lls)
+  (= (length lls) (length (filter has-all-singleton lls))))
+
+;; returns true if the matrix is valid, false otherwise
+(define (invalid-matrix? lls)
+  (or (any-row-with-dups lls) (any-row-with-dups (rotate lls)) (any-square-with-dups lls)))
+
   
 
   

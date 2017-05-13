@@ -1,13 +1,13 @@
 #lang racket
 
-(require rackunit "Untitled.rkt")
+(require rackunit "sudoku.rkt")
 
 ;; ======================== SUDOKU TESTS ===================
 
 ;; Testing the "transform" and "solve" functions of the sudoku solver
 ;; Note: the test might produce output which is unrelated to the test
 ;; itself (it is simply the side effects of running the solve
-;; function)
+;; function) and it maight take a few seconds to complete
 
 ;; =============== defining helpers sets ===================
 
